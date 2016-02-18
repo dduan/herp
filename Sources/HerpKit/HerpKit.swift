@@ -49,23 +49,49 @@ public struct Source {
         case LowerTail
     }
 
+    public struct WordPosition {
+        public let start: Int
+        public let end: Int
+        public let line: Int
+        public var length: Int {
+            return end - start
+        }
+        public var range: Range<Int> {
+            return start..<end
+        }
+        init(_ start: Int, _ end: Int, _ line: Int) {
+            self.start = start
+            self.end = end
+            self.line = line
+        }
+    }
+
     var state = ParseState.NonAlpha
 
     var content: [Character]
-    var ranges: [(Int, Int)] = []
+    var ranges: [WordPosition] = []
 
     var count: Int {
         return ranges.count
     }
+
     func word(i: Int) -> String {
         let range = ranges[i]
-        return String(content[range.0..<range.1])
+        return String(content[range.range])
     }
+
+    func word(position: WordPosition) -> String {
+        return String(content[position.range])
+    }
+
     public init(text: String) {
         var start: Int = 0
+        var lineCount = 0
         content = Array(text.characters)
         let count = content.count
         for (i, c) in content.enumerate() {
+            if c == "\n" { lineCount += 1 }
+
             switch state {
             case .NonAlpha:
                 if !c.isAlpha { continue }
@@ -86,17 +112,17 @@ public struct Source {
                 }
             case .UpperCase:
                 if !c.isAlpha {
-                    ranges.append((start, i))
+                    ranges.append(WordPosition(start, i, lineCount))
                     state = .NonAlpha
                 } else if c.isUpper && i < count - 1 {
                     if content[i + 1].isLower {
-                        ranges.append((start, i))
+                        ranges.append(WordPosition(start, i, lineCount))
                         start = i
                     }
                 }
             case .Head:
                 if !c.isAlpha {
-                    ranges.append((start, i))
+                    ranges.append(WordPosition(start, i, lineCount))
                     state = .NonAlpha
                 } else if c.isLower {
                     state = .LowerTail
@@ -107,7 +133,7 @@ public struct Source {
                 } else if c.isUpper {
                     if i < count - 1 {
                         let next = content[i+1]
-                        ranges.append((start, i))
+                        ranges.append(WordPosition(start, i, lineCount))
                         start = i
                         if next.isUpper {
                             state = .UpperCase
@@ -116,19 +142,19 @@ public struct Source {
                         }
                     }
                 } else {
-                    ranges.append((start, i))
+                    ranges.append(WordPosition(start, i, lineCount))
                     state = .NonAlpha
                 }
             }
         }
         if state != .NonAlpha {
-            ranges.append((start, count))
+            ranges.append(WordPosition(start, count, lineCount))
         }
     }
 }
 
 extension Source: SequenceType {
-    public func generate() -> AnyGenerator<(String, Int, Int)> {
+    public func generate() -> AnyGenerator<(String, WordPosition)> {
         var nextIndex = 0
         return AnyGenerator {
             if nextIndex >= self.count {
@@ -136,8 +162,7 @@ extension Source: SequenceType {
             }
             let r = (
                 self.word(nextIndex),
-                self.ranges[nextIndex].0,
-                self.ranges[nextIndex].1
+                self.ranges[nextIndex]
             )
             nextIndex += 1
             return r

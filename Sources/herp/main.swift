@@ -20,13 +20,13 @@ func herpLine(
     printLocation: Bool
 ) {
     let src = Source(text: line)
-    for (word, start, end) in src {
+    for (word, position) in src {
         if printWord {
             print(word, terminator: "")
         }
         if printLocation {
             print(printWord ? " " : "", terminator: "")
-            print(lineNumber, start, end, terminator: "")
+            print(lineNumber, position.start, position.end, terminator: "")
         }
         if (printLocation || printWord) {
             print("")
