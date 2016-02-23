@@ -13,60 +13,47 @@ for arg in Process.arguments[1..<Process.arguments.count] {
 
 }
 
-func herpLine(
-    line: String,
-    lineNumber: Int,
+func herpProcess(
+    fileHandle: NSFileHandle,
     printWord: Bool,
     printLocation: Bool
 ) {
-    let src = Source(text: line)
-    for (word, position) in src {
-        if printWord {
-            print(word, terminator: "")
+    var data: NSData = fileHandle.availableData
+    while data.length > 0 {
+        if let content = String(data: data, encoding: NSUTF8StringEncoding) {
+            let src = Source(text: content)
+            for (word, position) in src {
+                if printWord {
+                    print(word, terminator: "")
+                }
+                if printLocation {
+                    print(printWord ? " " : "", terminator: "")
+                    print(
+                        position.line,
+                        position.start,
+                        position.end - position.start,
+                        terminator: ""
+                    )
+                }
+                if (printLocation || printWord) {
+                    print("")
+                }
+            }
         }
-        if printLocation {
-            print(printWord ? " " : "", terminator: "")
-            print(lineNumber, position.start, position.end, terminator: "")
-        }
-        if (printLocation || printWord) {
-            print("")
-        }
+        data = fileHandle.availableData
     }
 }
 
 func herp(printWord printWord: Bool, printLocation: Bool) {
     if files.isEmpty {
-        var line = 0
-        while let s = readLine(stripNewline: false) {
-            herpLine(
-                s,
-                lineNumber: line,
-                printWord: printWord,
-                printLocation: printLocation
-            )
-            line += 1
-        }
+        let input = NSFileHandle.fileHandleWithStandardInput()
+        herpProcess(input, printWord: printWord, printLocation: printLocation)
     } else {
-        let nlSet = NSCharacterSet.newlineCharacterSet()
-        for file in files {
-            do {
-                var line = 0
-                let content = try NSString(
-                    contentsOfFile: file,
-                    encoding: NSUTF8StringEncoding
+        for filePath in files {
+            if let file = NSFileHandle(forReadingAtPath: filePath) {
+                herpProcess(
+                    file, printWord: printWord, printLocation: printLocation
                 )
-                for s in content.componentsSeparatedByCharactersInSet(nlSet) {
-                    herpLine(
-                        s,
-                        lineNumber: line,
-                        printWord: printWord,
-                        printLocation: printLocation
-                    )
-                    line += 1
-
-                }
-            } catch {
-                print("herp: [error] can't open file \(file)")
             }
         }
     }
